@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+        <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
         <script>
         AFRAME.registerComponent('marker-sound', {
             init: function () {
@@ -23,18 +24,50 @@
             }
         });
     </script>
+    
+    <script>
+        AFRAME.registerComponent('play-all-model-animations', {
+            init: function () {
+                this.model = null;
+                this.mixer = null;
+
+                var model = this.el.getObject3D('mesh');
+                if (model) {
+                    this.load(model);
+                } else {
+                    this.el.addEventListener('model-loaded', e => {
+                        this.load(e.detail.model);
+                    });
+                }
+            },
+
+            load: function (model) {
+                this.model = model;
+                this.mixer = new THREE.AnimationMixer(model);
+                
+                if (this.model.animations.length) {
+                    this.model.animations.forEach(animation => {
+                        let action = this.mixer.clipAction(animation);
+                        action.play();
+                    });
+                }
+            },
+
+            tick: function (t, dt) {
+                if (this.mixer) {
+                    this.mixer.update(dt / 1000);
+                }
+            }
+        });
+    </script>
+    
+    
   </head>
   <body>
     <a-scene embedded arjs="patternRatio:0.80">
       <a-marker marker-sound type="pattern"
                 url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-dog.patt?v=1740859400928">
-<!--         <a-box position="0 0 0" rotation="0 45 0" color="#4CC3D9"></a-box> -->
-        
-<!--          <a-entity
-          position="0 0 0"
-          scale="0.05 0.05 0.05"
-          gltf-model="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/dinasour.glb?v=1740861047437">
-        </a-entity> -->
+
         <a-image id="profile" position="0 1 0" height="1" width="1" rotation="90 180 0" src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/dog.jpeg?v=1740860209442"></a-image>
         <a-sound src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/barking-large-and-small-dog-290711.mp3?v=1740896674102" loop="true" position="0 0 0"></a-sound>
       </a-marker>
@@ -45,6 +78,22 @@
         <a-image id="profile1" position="0 1 0" height="0.9" width="0.9" rotation="90 180 0" src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cat.jpeg?v=1740861879539"></a-image>
          <a-sound src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cat-meow-8-fx-306184.mp3?v=1740896637522" loop="true" position="0 0 0"></a-sound>
       </a-marker>
+      
+<!--       spider -->
+      
+       <a-marker marker-sound type="pattern"
+                url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-spider.patt?v=1740920936418">
+
+        <a-entity
+    position="0 0 0"
+    scale="1 1 1"
+    rotation="0 0 0"
+     animation-mixer
+        play-all-model-animations
+    gltf-model="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/spider.glb?v=1740919154961">
+</a-entity>
+      </a-marker>
+      
       <a-entity camera></a-entity>
     </a-scene>
   </body>
