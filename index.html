@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html>
   <head>
-        <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    
+    <script src="https://raw.githack.com/fcor/arjs-gestures/master/dist/gestures.js"></script>
+    
         <script>
         AFRAME.registerComponent('marker-sound', {
             init: function () {
@@ -62,9 +65,96 @@
     </script>
     
     
+    <script>
+    AFRAME.registerComponent('gesture-handler', {
+        schema: {
+            enabled: { default: true },
+            rotationFactor: { default: 5 },
+            minScale: { default: 0.3 },
+            maxScale: { default: 8 },
+        },
+
+        init: function() {
+            this.handleScale = this.handleScale.bind(this);
+            this.handleRotation = this.handleRotation.bind(this);
+
+            this.isVisible = false;
+            this.initialScale = this.el.object3D.scale.clone();
+            this.scaleFactor = 1;
+
+            this.el.sceneEl.addEventListener("markerFound", (e) => {
+                this.isVisible = true;
+            });
+
+            this.el.sceneEl.addEventListener("markerLost", (e) => {
+                this.isVisible = false;
+            });
+        },
+
+        handleRotation: function(event) {
+            if (this.isVisible) {
+                this.el.object3D.rotation.y +=
+                    event.detail.positionChange.x * this.data.rotationFactor;
+                this.el.object3D.rotation.x +=
+                    event.detail.positionChange.y * this.data.rotationFactor;
+            }
+        },
+
+        handleScale: function(event) {
+            if (this.isVisible) {
+                this.scaleFactor *=
+                    1 + event.detail.spreadChange / event.detail.startSpread;
+
+                this.scaleFactor = Math.min(
+                    Math.max(this.scaleFactor, this.data.minScale),
+                    this.data.maxScale
+                );
+
+                this.el.object3D.scale.x = this.scaleFactor * this.initialScale.x;
+                this.el.object3D.scale.y = this.scaleFactor * this.initialScale.y;
+                this.el.object3D.scale.z = this.scaleFactor * this.initialScale.z;
+            }
+        },
+    });
+      
+      
+     
+
+</script>
+    
+<!--      <style>
+        .arjs-loader {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .arjs-loader div {
+            text-align: center;
+            font-size: 1.25em;
+            color: white;
+        }
+    </style> -->
+    
+    
   </head>
   <body>
-    <a-scene embedded arjs="patternRatio:0.80">
+    
+    <!--
+    <div class="arjs-loader">
+        <div>Loading, please wait...</div>
+    </div> 
+    -->
+    
+    <a-scene embedded arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; patternRatio:0.80"
+    gesture-detector>
       <a-marker marker-sound type="pattern"
                 url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-dog.patt?v=1740859400928">
 
@@ -79,20 +169,22 @@
          <a-sound src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cat-meow-8-fx-306184.mp3?v=1740896637522" loop="true" position="0 0 0"></a-sound>
       </a-marker>
       
-<!--       spider -->
+      <!--car -->
       
        <a-marker marker-sound type="pattern"
                 url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-spider.patt?v=1740920936418">
 
-        <a-entity
+    <a-entity
     position="0 0 0"
-    scale="1 1 1"
+    scale="0.1 0.1 0.1"
     rotation="0 0 0"
-     animation-mixer
-        play-all-model-animations
-    gltf-model="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/spider.glb?v=1740919154961">
-</a-entity>
-      </a-marker>
+    animation-mixer
+    play-all-model-animations
+    gltf-model="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cartoon_car.glb?v=1740931241060"                 
+    gesture-handler="minScale: 0.25; maxScale: 10 rotationFactor: 1"
+    class="clickable">             
+    </a-entity>
+    </a-marker>
       
       <a-entity camera></a-entity>
     </a-scene>
