@@ -201,11 +201,39 @@
 
     </script>
 
+    <!--      <style>
+        .arjs-loader {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .arjs-loader div {
+            text-align: center;
+            font-size: 1.25em;
+            color: white;
+        }
+    </style> -->
+
+    <!-- filepath: /home/abhishek002/Programing/AR/WebXR Html/ar2/test.html -->
+
 
 </head>
 
 <body>
 
+    <!--
+    <div class="arjs-loader">
+        <div>Loading, please wait...</div>
+    </div> 
+    -->
 
     <a-scene embedded arjs="trackingMethod: best; 
                sourceType: webcam; 
@@ -255,7 +283,7 @@
             </a-entity>
         </a-marker>
 
-        <!-- Ball Marker -->
+        <!-- ball Marker -->
         <a-marker id="ball-marker" persistent-marker type="pattern"
             smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
             url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-ball.patt?v=1741022413734">
@@ -264,12 +292,6 @@
                 gltf-model="https://cdn.glitch.me/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/ball.glb?v=1741022612693">
             </a-entity>
         </a-marker>
-      
-      <a-marker id="website-marker" type="pattern" 
-          smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
-          url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-spider.patt?v=1740920936418">
-    
- 
 
         <a-entity camera></a-entity>
     </a-scene>
