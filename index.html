@@ -1,13 +1,92 @@
 <!DOCTYPE html>
 <html>
-  <head>
+
+<head>
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-    
+
     <script src="https://raw.githack.com/fcor/arjs-gestures/master/dist/gestures.js"></script>
-    
-        <script>
+
+    <script>
+        AFRAME.registerComponent('smooth', {
+            schema: {
+                smoothCount: { type: 'number', default: 10 },
+                smoothTolerance: { type: 'number', default: 0.01 },
+                smoothThreshold: { type: 'number', default: 2 },
+            },
+
+            init: function () {
+                this.previousPosition = new THREE.Vector3();
+                this.previousRotation = new THREE.Euler();
+                this.previousVisible = false;
+                this.positions = [];
+                this.rotations = [];
+            },
+
+            tick: function () {
+                const marker = this.el;
+                const object3D = marker.object3D;
+                const { smoothCount, smoothTolerance, smoothThreshold } = this.data;
+
+                if (!object3D.visible && this.previousVisible) {
+                    // Store last known position when marker disappears
+                    object3D.position.copy(this.previousPosition);
+                    object3D.rotation.copy(this.previousRotation);
+                } else if (object3D.visible) {
+                    // Position smoothing
+                    this.positions.push(object3D.position.clone());
+                    if (this.positions.length > smoothCount) {
+                        this.positions.shift();
+                    }
+
+                    // Rotation smoothing
+                    this.rotations.push(new THREE.Euler().copy(object3D.rotation));
+                    if (this.rotations.length > smoothCount) {
+                        this.rotations.shift();
+                    }
+
+                    if (this.positions.length >= smoothCount) {
+                        // Apply smoothing
+                        const smoothedPosition = new THREE.Vector3();
+                        const smoothedRotation = new THREE.Euler();
+
+                        // Average positions
+                        this.positions.forEach(pos => smoothedPosition.add(pos));
+                        smoothedPosition.divideScalar(this.positions.length);
+
+                        // Average rotations
+                        this.rotations.forEach(rot => {
+                            smoothedRotation.x += rot.x;
+                            smoothedRotation.y += rot.y;
+                            smoothedRotation.z += rot.z;
+                        });
+                        smoothedRotation.x /= this.rotations.length;
+                        smoothedRotation.y /= this.rotations.length;
+                        smoothedRotation.z /= this.rotations.length;
+
+                        // Apply smoothed values if change is within tolerance
+                        if (smoothedPosition.distanceTo(object3D.position) < smoothThreshold) {
+                            object3D.position.lerp(smoothedPosition, smoothTolerance);
+                            object3D.rotation.set(
+                                THREE.MathUtils.lerp(object3D.rotation.x, smoothedRotation.x, smoothTolerance),
+                                THREE.MathUtils.lerp(object3D.rotation.y, smoothedRotation.y, smoothTolerance),
+                                THREE.MathUtils.lerp(object3D.rotation.z, smoothedRotation.z, smoothTolerance)
+                            );
+                        }
+                    }
+
+                    // Store current values
+                    this.previousPosition.copy(object3D.position);
+                    this.previousRotation.copy(object3D.rotation);
+                }
+                this.previousVisible = object3D.visible;
+            }
+        });
+    </script>
+
+
+    <script>
         AFRAME.registerComponent('marker-sound', {
             init: function () {
                 const marker = this.el;
@@ -27,7 +106,7 @@
             }
         });
     </script>
-    
+
     <script>
         AFRAME.registerComponent('play-all-model-animations', {
             init: function () {
@@ -47,7 +126,7 @@
             load: function (model) {
                 this.model = model;
                 this.mixer = new THREE.AnimationMixer(model);
-                
+
                 if (this.model.animations.length) {
                     this.model.animations.forEach(animation => {
                         let action = this.mixer.clipAction(animation);
@@ -63,130 +142,137 @@
             }
         });
     </script>
-    
-    
+
+
     <script>
-    AFRAME.registerComponent('gesture-handler', {
-        schema: {
-            enabled: { default: true },
-            rotationFactor: { default: 5 },
-            minScale: { default: 0.3 },
-            maxScale: { default: 8 },
-        },
+        AFRAME.registerComponent('gesture-handler', {
+            schema: {
+                enabled: { default: true },
+                rotationFactor: { default: 5 },
+                minScale: { default: 0.3 },
+                maxScale: { default: 8 },
+            },
 
-        init: function() {
-            this.handleScale = this.handleScale.bind(this);
-            this.handleRotation = this.handleRotation.bind(this);
+            init: function () {
+                this.handleScale = this.handleScale.bind(this);
+                this.handleRotation = this.handleRotation.bind(this);
 
-            this.isVisible = false;
-            this.initialScale = this.el.object3D.scale.clone();
-            this.scaleFactor = 1;
-
-            this.el.sceneEl.addEventListener("markerFound", (e) => {
-                this.isVisible = true;
-            });
-
-            this.el.sceneEl.addEventListener("markerLost", (e) => {
                 this.isVisible = false;
-            });
-        },
+                this.initialScale = this.el.object3D.scale.clone();
+                this.scaleFactor = 1;
 
-        handleRotation: function(event) {
-            if (this.isVisible) {
-                this.el.object3D.rotation.y +=
-                    event.detail.positionChange.x * this.data.rotationFactor;
-                this.el.object3D.rotation.x +=
-                    event.detail.positionChange.y * this.data.rotationFactor;
-            }
-        },
+                this.el.sceneEl.addEventListener("markerFound", (e) => {
+                    this.isVisible = true;
+                });
 
-        handleScale: function(event) {
-            if (this.isVisible) {
-                this.scaleFactor *=
-                    1 + event.detail.spreadChange / event.detail.startSpread;
+                this.el.sceneEl.addEventListener("markerLost", (e) => {
+                    this.isVisible = false;
+                });
+            },
 
-                this.scaleFactor = Math.min(
-                    Math.max(this.scaleFactor, this.data.minScale),
-                    this.data.maxScale
-                );
+            handleRotation: function (event) {
+                if (this.isVisible) {
+                    this.el.object3D.rotation.y +=
+                        event.detail.positionChange.x * this.data.rotationFactor;
+                    this.el.object3D.rotation.x +=
+                        event.detail.positionChange.y * this.data.rotationFactor;
+                }
+            },
 
-                this.el.object3D.scale.x = this.scaleFactor * this.initialScale.x;
-                this.el.object3D.scale.y = this.scaleFactor * this.initialScale.y;
-                this.el.object3D.scale.z = this.scaleFactor * this.initialScale.z;
-            }
-        },
-    });
+            handleScale: function (event) {
+                if (this.isVisible) {
+                    this.scaleFactor *=
+                        1 + event.detail.spreadChange / event.detail.startSpread;
+
+                    this.scaleFactor = Math.min(
+                        Math.max(this.scaleFactor, this.data.minScale),
+                        this.data.maxScale
+                    );
+
+                    this.el.object3D.scale.x = this.scaleFactor * this.initialScale.x;
+                    this.el.object3D.scale.y = this.scaleFactor * this.initialScale.y;
+                    this.el.object3D.scale.z = this.scaleFactor * this.initialScale.z;
+                }
+            },
+        });
+
+
+
+
+    </script>
+
+
+</head>
+
+<body>
+
+
+    <a-scene embedded arjs="trackingMethod: best; 
+               sourceType: webcam; 
+               debugUIEnabled: false; 
+               patternRatio: 0.75;
+               detectionMode: mono_and_matrix;
+               matrixCodeType: 3x3;
+               sourceWidth: 1280;
+               sourceHeight: 720;
+               displayWidth: 1280;
+               displayHeight: 720;
+               maxDetectionRate: 60;
+               smoothCount: 10;
+               smoothTolerance: 0.01;
+               smoothThreshold: 2;" renderer="antialias: true; 
+                  precision: medium;
+                  logarithmicDepthBuffer: true;" vr-mode-ui="enabled: false" gesture-detector>
+        <a-marker marker-sound type="pattern" smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
+            url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-dog.patt?v=1740859400928">
+
+
+
+            <a-image id="profile" position="0 1 0" height="1" width="1" rotation="90 180 0"
+                src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/dog.jpeg?v=1740860209442"></a-image>
+            <a-sound
+                src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/barking-large-and-small-dog-290711.mp3?v=1740896674102"
+                loop="true" position="0 0 0"></a-sound>
+        </a-marker>
+
+        <a-marker marker-sound type="pattern" smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
+            url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-cat.patt?v=1740861845341">
+
+            <a-image id="profile1" position="0 1 0" height="0.9" width="0.9" rotation="90 180 0"
+                src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cat.jpeg?v=1740861879539"></a-image>
+            <a-sound
+                src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cat-meow-8-fx-306184.mp3?v=1740896637522"
+                loop="true" position="0 0 0"></a-sound>
+        </a-marker>
+
+        <!-- Apple Marker -->
+        <a-marker id="apple-marker" persistent-marker type="pattern"
+            smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
+            url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-apple.patt?v=1741018580750">
+            <a-entity position="0 0 0" scale="0.3 0.3 0.3" rotation="0 0 0" animation-mixer class="clickable"
+                gesture-handler="minScale: 0.05; maxScale: 10; rotationFactor: 5"
+                gltf-model="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/apple.glb?v=1741018089554">
+            </a-entity>
+        </a-marker>
+
+        <!-- Ball Marker -->
+        <a-marker id="ball-marker" persistent-marker type="pattern"
+            smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
+            url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-ball.patt?v=1741022413734">
+            <a-entity position="0 0 0" scale="1.2 1.2 1.2" rotation="0 0 0" animation-mixer class="clickable"
+                gesture-handler="minScale: 0.05; maxScale: 10; rotationFactor: 5"
+                gltf-model="https://cdn.glitch.me/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/ball.glb?v=1741022612693">
+            </a-entity>
+        </a-marker>
       
-      
-     
-
-</script>
+      <a-marker id="website-marker" type="pattern" 
+          smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
+          url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-spider.patt?v=1740920936418">
     
-<!--      <style>
-        .arjs-loader {
-            height: 100%;
-            width: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+ 
 
-        .arjs-loader div {
-            text-align: center;
-            font-size: 1.25em;
-            color: white;
-        }
-    </style> -->
-    
-    
-  </head>
-  <body>
-    
-    <!--
-    <div class="arjs-loader">
-        <div>Loading, please wait...</div>
-    </div> 
-    -->
-    
-    <a-scene embedded arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; patternRatio:0.80"
-    gesture-detector>
-      <a-marker marker-sound type="pattern"
-                url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-dog.patt?v=1740859400928">
-
-        <a-image id="profile" position="0 1 0" height="1" width="1" rotation="90 180 0" src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/dog.jpeg?v=1740860209442"></a-image>
-        <a-sound src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/barking-large-and-small-dog-290711.mp3?v=1740896674102" loop="true" position="0 0 0"></a-sound>
-      </a-marker>
-      
-       <a-marker marker-sound type="pattern"
-                url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-cat.patt?v=1740861845341">
-
-        <a-image id="profile1" position="0 1 0" height="0.9" width="0.9" rotation="90 180 0" src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cat.jpeg?v=1740861879539"></a-image>
-         <a-sound src="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cat-meow-8-fx-306184.mp3?v=1740896637522" loop="true" position="0 0 0"></a-sound>
-      </a-marker>
-      
-      <!--car -->
-      
-       <a-marker marker-sound type="pattern"
-                url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-spider.patt?v=1740920936418">
-
-    <a-entity
-    position="0 0 0"
-    scale="0.1 0.1 0.1"
-    rotation="0 0 0"
-    animation-mixer
-    play-all-model-animations
-    gltf-model="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/cartoon_car.glb?v=1740931241060"                 
-    gesture-handler="minScale: 0.25; maxScale: 10 rotationFactor: 1"
-    class="clickable">             
-    </a-entity>
-    </a-marker>
-      
-      <a-entity camera></a-entity>
+        <a-entity camera></a-entity>
     </a-scene>
-  </body>
+</body>
+
 </html>
