@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
-
+    
     <script src="https://raw.githack.com/fcor/arjs-gestures/master/dist/gestures.js"></script>
-
-    <script>
+    
+         <script>
         AFRAME.registerComponent('smooth', {
             schema: {
                 smoothCount: { type: 'number', default: 10 },
@@ -84,29 +83,7 @@
             }
         });
     </script>
-
-
-    <script>
-        AFRAME.registerComponent('marker-sound', {
-            init: function () {
-                const marker = this.el;
-                const sound = marker.querySelector('a-sound');
-
-                marker.addEventListener('markerFound', () => {
-                    if (sound) {
-                        sound.components.sound.playSound();
-                    }
-                });
-
-                marker.addEventListener('markerLost', () => {
-                    if (sound) {
-                        sound.components.sound.stopSound();
-                    }
-                });
-            }
-        });
-    </script>
-
+    
     <script>
         AFRAME.registerComponent('play-all-model-animations', {
             init: function () {
@@ -126,7 +103,7 @@
             load: function (model) {
                 this.model = model;
                 this.mixer = new THREE.AnimationMixer(model);
-
+                
                 if (this.model.animations.length) {
                     this.model.animations.forEach(animation => {
                         let action = this.mixer.clipAction(animation);
@@ -142,116 +119,74 @@
             }
         });
     </script>
-
-
+    
+    
     <script>
-        AFRAME.registerComponent('gesture-handler', {
-            schema: {
-                enabled: { default: true },
-                rotationFactor: { default: 5 },
-                minScale: { default: 0.3 },
-                maxScale: { default: 8 },
-            },
+    AFRAME.registerComponent('gesture-handler', {
+        schema: {
+            enabled: { default: true },
+            rotationFactor: { default: 5 },
+            minScale: { default: 0.3 },
+            maxScale: { default: 8 },
+        },
 
-            init: function () {
-                this.handleScale = this.handleScale.bind(this);
-                this.handleRotation = this.handleRotation.bind(this);
+        init: function() {
+            this.handleScale = this.handleScale.bind(this);
+            this.handleRotation = this.handleRotation.bind(this);
 
+            this.isVisible = false;
+            this.initialScale = this.el.object3D.scale.clone();
+            this.scaleFactor = 1;
+
+            this.el.sceneEl.addEventListener("markerFound", (e) => {
+                this.isVisible = true;
+            });
+
+            this.el.sceneEl.addEventListener("markerLost", (e) => {
                 this.isVisible = false;
-                this.initialScale = this.el.object3D.scale.clone();
-                this.scaleFactor = 1;
+            });
+        },
 
-                this.el.sceneEl.addEventListener("markerFound", (e) => {
-                    this.isVisible = true;
-                });
+        handleRotation: function(event) {
+            if (this.isVisible) {
+                this.el.object3D.rotation.y +=
+                    event.detail.positionChange.x * this.data.rotationFactor;
+                this.el.object3D.rotation.x +=
+                    event.detail.positionChange.y * this.data.rotationFactor;
+            }
+        },
 
-                this.el.sceneEl.addEventListener("markerLost", (e) => {
-                    this.isVisible = false;
-                });
-            },
+        handleScale: function(event) {
+            if (this.isVisible) {
+                this.scaleFactor *=
+                    1 + event.detail.spreadChange / event.detail.startSpread;
 
-            handleRotation: function (event) {
-                if (this.isVisible) {
-                    this.el.object3D.rotation.y +=
-                        event.detail.positionChange.x * this.data.rotationFactor;
-                    this.el.object3D.rotation.x +=
-                        event.detail.positionChange.y * this.data.rotationFactor;
-                }
-            },
+                this.scaleFactor = Math.min(
+                    Math.max(this.scaleFactor, this.data.minScale),
+                    this.data.maxScale
+                );
 
-            handleScale: function (event) {
-                if (this.isVisible) {
-                    this.scaleFactor *=
-                        1 + event.detail.spreadChange / event.detail.startSpread;
+                this.el.object3D.scale.x = this.scaleFactor * this.initialScale.x;
+                this.el.object3D.scale.y = this.scaleFactor * this.initialScale.y;
+                this.el.object3D.scale.z = this.scaleFactor * this.initialScale.z;
+            }
+        },
+    });
+      
+      
+     
 
-                    this.scaleFactor = Math.min(
-                        Math.max(this.scaleFactor, this.data.minScale),
-                        this.data.maxScale
-                    );
-
-                    this.el.object3D.scale.x = this.scaleFactor * this.initialScale.x;
-                    this.el.object3D.scale.y = this.scaleFactor * this.initialScale.y;
-                    this.el.object3D.scale.z = this.scaleFactor * this.initialScale.z;
-                }
-            },
-        });
-
-
-
-
-    </script>
-
-    <!--      <style>
-        .arjs-loader {
-            height: 100%;
-            width: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            background-color: rgba(0, 0, 0, 0.8);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .arjs-loader div {
-            text-align: center;
-            font-size: 1.25em;
-            color: white;
-        }
-    </style> -->
-
-    <!-- filepath: /home/abhishek002/Programing/AR/WebXR Html/ar2/test.html -->
-
-
-</head>
-
-<body>
-
-    <!--
-    <div class="arjs-loader">
-        <div>Loading, please wait...</div>
-    </div> 
-    -->
-
-    <a-scene embedded arjs="trackingMethod: best; 
-               sourceType: webcam; 
-               debugUIEnabled: false; 
-               patternRatio: 0.75;
-               detectionMode: mono_and_matrix;
-               matrixCodeType: 3x3;
-               sourceWidth: 1280;
-               sourceHeight: 720;
-               displayWidth: 1280;
-               displayHeight: 720;
-               maxDetectionRate: 60;
-               smoothCount: 10;
-               smoothTolerance: 0.01;
-               smoothThreshold: 2;" renderer="antialias: true; 
-                  precision: medium;
-                  logarithmicDepthBuffer: true;" vr-mode-ui="enabled: false" gesture-detector>
-        <a-marker marker-sound type="pattern" smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
+</script>
+    
+    
+    
+  </head>
+  <body>
+    
+    
+    <a-scene embedded arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; patternRatio:0.80"
+    gesture-detector>
+              <a-marker marker-sound type="pattern" smooth="smoothCount: 10; smoothTolerance: 0.01; smoothThreshold: 2"
             url="https://cdn.glitch.global/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/pattern-dog.patt?v=1740859400928">
 
 
@@ -292,9 +227,8 @@
                 gltf-model="https://cdn.glitch.me/8a71779a-dcdf-4793-9597-1c0dd0fbcad6/ball.glb?v=1741022612693">
             </a-entity>
         </a-marker>
-
-        <a-entity camera></a-entity>
+      
+      <a-entity camera></a-entity>
     </a-scene>
-</body>
-
+  </body>
 </html>
